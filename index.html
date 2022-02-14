@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <style>
+        body {
+            margin-right: auto;
+            margin-left: 50px;
+            margin-top: 10px;
+            margin-bottom: 10px;
+        }
+        .chart-container {
+            max-width: 1050px;
+            font-family: 'Franklin Gothic Medium', Arial, sans-serif;
+        }
+
+        p {
+            width: 600px;
+        }
+
+        svg {
+            background-color: white;
+            overflow: visible;
+        }
+
+        h1 {
+            width: 700px;
+            text-size-adjust: 100px;
+        }
+
+        .Note {
+            width: 800px;
+            color:grey;
+            font-size: 12px;
+        }
+
+        .highlight {
+            color:green;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="chart-container">
+        <h1 class="headline">
+            Medicare Plan Type Percentage by Income Percentile, <span class="highlight">2009</span>
+        </h1>
+        <svg width="700px" height="500px">
+        </svg>
+        <p class = "Note">
+            Note: The income measure used here is disposable income, which is defined as market income plus cash transfers from the government and noncash benefits like food stamps and public housing. It excludes taxes, out-of-pocket medical spending, insurance premiums and other expenses. There have been small changes in the census questionnaire between the two survey dates. Source: Current Population Survey, analysis by Matt Bruenig
+        </p>
+    </div>
+</body>
+
+<script src="https://d3js.org/d3.v6.min.js"></script>
+
+<script>
+    console.log({ d3 })
+    var margin = { top: 20, right: 20, bottom: 30, left:0 },
+        width = 800 - margin.left - margin.right,
+        height = 500 - margin.top - margin.bottom;
+
+    var svg = d3.select("svg").append("g")
+        .attr("transform", "translate(" + margin.left + " " + margin.top + ")");
+
+    var sel_cols = ["Medicaid", "Medicare", "Medicare+Medicaid", "Employer", "Uninsured",
+        "Direct Purchase", "Subsidized Exchange", "CHIP", "Military", "Other"],
+        sel_colors = ["#f44336", "#FF9800", "#FDD835", "#FFF8E1", "#26A69A", 
+        "#4DD0E1", "#F06292", "#5C6BC0", "#90A4AE", "#E0E0E0"];
+    
+    d3.csv("healthcare.csv").then(data => {    
+        //parsing data
+        let year_state = 2020;
+        let d2020 = data.filter(d => d.year == 2020);
+        var series2020 = d3.stack().keys(sel_cols)(d2020);
+        let d2009 = data.filter(d => d.year == 2009);
+        var series2009 = d3.stack().keys(sel_cols)(d2009);
+        let color = d3.scaleOrdinal()
+            .domain(sel_cols)
+            .range(sel_colors)
+        //setting up x & y axis
+        let x = d3.scaleLinear()
+            .domain([0, 100])
+            .range([margin.left, width])
+
+        let y = d3.scaleLinear()
+            .domain([0, 1])
+            .range([height - margin.bottom, margin.top])
+
+        let area = d3.area()
+            .x(d => x(d.data.Percentile))
+            .y0(d => y(d[0]))
+            .y1(d => y(d[1]))
+
+        let xAxisSettings = d3.axisBottom(x)
+            .tickSize(6)
+            .tickPadding(6)
+            .ticks(10)
+            .tickValues([5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 95])
+            .tickFormat(d3.format(".0f"))
+
+        let xAxis = svg.append("g")
+            .attr("class", "x axis")
+            .call(xAxisSettings)
+            .call(g => g.selectAll(".domain").remove())
+            .attr("transform", `translate(0,${height - margin.bottom})`)
+        
+        //x axis label
+        svg.append("text")
+            .attr("class", "x label")
+            .attr("text-anchor", "end")
+            .attr("x", width/2 + 20)
+            .attr("y", height + 20)
+            .text("Income Percentile");
+        
+        let yAxisSettings = d3.axisLeft(y)
+            .tickValues([.2, .4, .6, .8])
+            .tickSize(6)
+            .tickPadding(1)
+            .tickFormat(d3.format(".0%"))
+
+        let yAxis = svg.append("g")
+            .attr("class", "y axis")
+            .call(yAxisSettings)
+            .call(g => g.selectAll(".domain").remove())
+        
+        //plotting
+        let plot = svg.append("g");
+        let hed = d3.select(".headline");
+
+        plot
+            .selectAll("path")
+            .data(series2009)
+            .join("path")
+            .attr("class", d =>  {
+                console.log(d)
+                return d.key
+            })
+            .attr("fill", d => color(d.key))
+            .attr("d", area)
+            
+            //main tags
+            txt_employer = svg.append("text")
+                .attr("class", "label")
+                .attr("x", 600) 
+                .attr("y", 200)
+                .text("Employer")
+
+            txt_medicaid = svg.append("text")
+                .attr("class", "label")
+                .attr("x", 60)
+                .attr("y", 350)
+                .text("Medicaid")
+                .style("fill", "white")
+
+            txt_uninsured = svg.append("text")
+                .attr("class", "label")
+                .attr("x", 60)
+                .attr("y", 90)
+                .text("Uninsured")
+                .style("fill", "white")
+
+            txt_medicare = svg.append("text")
+                .attr("class", "label")
+                .attr("x", 60)
+                .attr("y", 270)
+                .text("Medicare")
+                .style("fill", "black")
+            
+            txt_direct = svg.append("text")
+                .attr("class", "label")
+                .attr("x", 790)
+                .attr("y", 50)
+                .text("Direct Purchase")
+                .style("fill", "black")
+            
+            // add remaining legends
+            svg.append("text")
+                .attr("class", "legends")
+                .text("Medicare and Medicaid")
+                .attr("x", 50)
+                .attr("y", 5)
+            
+            svg.append('rect')
+                .attr('x', 35)
+                .attr('y', -5)
+                .attr('width', 10)
+                .attr('height', 10)
+                .attr('fill', 'rgb(253, 216, 53)');
+            
+            svg.append("text")
+                .attr("class", "legends")
+                .text("Subsidized Exchange")
+                .attr("x", 250)
+                .attr("y", 5)
+            
+            svg.append('rect')
+                .attr('x', 235)
+                .attr('y', -5)
+                .attr('width', 10)
+                .attr('height', 10)
+                .attr('fill', 'rgb(240, 98, 146)');
+
+            svg.append("text")
+                .attr("class", "legends")
+                .text("CHIP")
+                .attr("x", 450)
+                .attr("y", 5)
+
+            svg.append('rect')
+                .attr('x', 435)
+                .attr('y', -5)
+                .attr('width', 10)
+                .attr('height', 10)
+                .attr('fill', 'rgb(92, 107, 192)');
+
+            svg.append("text")
+                .attr("class", "legends")
+                .text("Military")
+                .attr("x", 550)
+                .attr("y", 5)
+            
+            svg.append('rect')
+                .attr('x', 535)
+                .attr('y', -5)
+                .attr('width', 10)
+                .attr('height', 10)
+                .attr('fill', 'rgb(144, 164, 174)');
+
+            svg.append("text")
+                .attr("class", "legends")
+                .text("Other")
+                .attr("x", 660)
+                .attr("y", 5)
+
+            svg.append('rect')
+                .attr('x', 645)
+                .attr('y', -5)
+                .attr('width', 10)
+                .attr('height', 10)
+                .attr('fill', 'rgb(224, 224, 224)');
+        
+        //make plot dance
+        function update() {
+            console.log("update")
+            console.log("old year state " + year_state);
+
+            if (year_state == 2020) {
+                year_state = 2009
+                dance(series2020)
+                hed.html('Medicare Plan Type Percentage by Income Percentile, <span class="highlight">2020</span>')
+
+            } else {
+                year_state = 2020
+                dance(series2009)
+                hed.html('Medicare Plan Type Percentage by Income Percentile, <span class="highlight">2009</span>')
+            }
+            console.log("new year state " + year_state);
+        }
+
+        function dance(filtered_data) {
+            plot
+                .selectAll("path")
+                .data(filtered_data)
+                .join("path")
+                .transition()
+                .duration(1000)
+                .ease(d3.easeLinear)
+                .attr("class", d =>  {
+                    console.log(d)
+                    return d.key
+                })
+                .attr("fill", d => color(d.key))
+                .attr("d", area)
+        }
+
+        var timer = d3.interval(update, 2000) 
+
+    })
+
+
+    
+</script>
